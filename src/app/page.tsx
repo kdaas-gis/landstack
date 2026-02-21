@@ -98,8 +98,8 @@ const initialLayers: LayerDefinition[] = [
   },
   {
     id: 'survey-number-boundary',
-    name: 'Survey Number Boundary',
-    type: 'wfs',
+    name: 'Hissa Boundary',
+    type: 'image-wms',
     url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent(APPLICATION_OWS_URL)}`,
     layerName: 'application:banglore_urban',
     opacity: 0.8,
@@ -421,6 +421,14 @@ function MapInterface() {
     }
   };
 
+  const isPolygonFeature =
+    selectedFeature?.geometry &&
+    selectedFeature.sourceLayer?.toLowerCase().includes('polygon') &&
+    (
+      (selectedFeature.geometry.getType && typeof selectedFeature.geometry.getType === 'function' ? selectedFeature.geometry.getType() : selectedFeature.geometry.type) === 'Polygon' ||
+      (selectedFeature.geometry.getType && typeof selectedFeature.geometry.getType === 'function' ? selectedFeature.geometry.getType() : selectedFeature.geometry.type) === 'MultiPolygon'
+    );
+
   return (
     <main className="relative h-screen w-screen bg-[#0a0a0b] overflow-hidden">
       {/* 1. Full-Screen Map View */}
@@ -576,8 +584,8 @@ function MapInterface() {
 
             {/* Polygon Coordinates Panel — below legend, same width */}
             <AnimatePresence mode="wait">
-              {selectedFeature && selectedFeature.sourceLayer && selectedFeature.sourceLayer.toLowerCase().includes('_polygon') && (
-                <motion.div layout className="pointer-events-auto shrink-0 hidden md:block">
+              {selectedFeature && isPolygonFeature && (
+                <motion.div key={`coords-${selectedFeature.id || JSON.stringify(selectedFeature.attributes)}`} layout className="pointer-events-auto shrink-0 hidden md:block">
                   <CoordinatesPanel
                     geometry={(() => {
                       const geom = selectedFeature.geometry;
@@ -599,8 +607,8 @@ function MapInterface() {
 
             {/* Info Panel for NON-polygon features — stays below legend */}
             <AnimatePresence mode="wait">
-              {selectedFeature && !(selectedFeature.sourceLayer && selectedFeature.sourceLayer.toLowerCase().includes('_polygon')) && (
-                <motion.div layout className="pointer-events-auto min-h-0 hidden md:block">
+              {selectedFeature && !isPolygonFeature && (
+                <motion.div key={`info-nonpoly-${selectedFeature.id || JSON.stringify(selectedFeature.attributes)}`} layout className="pointer-events-auto min-h-0 hidden md:block">
                   <InfoPanel
                     attributes={selectedFeature.attributes}
                     sourceLayer={selectedFeature.sourceLayer}
@@ -614,8 +622,8 @@ function MapInterface() {
 
           {/* Right column: Info Panel for polygon features — beside legend+coords */}
           <AnimatePresence mode="wait">
-            {selectedFeature && selectedFeature.sourceLayer && selectedFeature.sourceLayer.toLowerCase().includes('_polygon') && (
-              <motion.div layout className="pointer-events-auto min-h-0 hidden md:block w-72">
+            {selectedFeature && isPolygonFeature && (
+              <motion.div key={`info-poly-${selectedFeature.id || JSON.stringify(selectedFeature.attributes)}`} layout className="pointer-events-auto min-h-0 hidden md:block w-72">
                 <InfoPanel
                   attributes={selectedFeature.attributes}
                   sourceLayer={selectedFeature.sourceLayer}
@@ -631,7 +639,7 @@ function MapInterface() {
       {/* Mobile Info Panel — bottom sheet */}
       <AnimatePresence mode="wait">
         {selectedFeature && (
-          <div className="md:hidden absolute bottom-0 left-0 right-0 z-50 pointer-events-auto">
+          <motion.div key={`info-mobile-${selectedFeature.id || JSON.stringify(selectedFeature.attributes)}`} className="md:hidden absolute bottom-0 left-0 right-0 z-50 pointer-events-auto">
             <InfoPanel
               attributes={selectedFeature.attributes}
               sourceLayer={selectedFeature.sourceLayer}
@@ -639,7 +647,7 @@ function MapInterface() {
               onClose={() => setSelectedFeature(null)}
               variant="sheet"
             />
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 

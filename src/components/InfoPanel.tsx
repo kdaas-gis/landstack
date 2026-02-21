@@ -74,7 +74,7 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
     let primaryNameKeys: string[] = [];
     if (layerName.includes('bengaluru_rural')) {
         primaryNameKeys = ['Surveynumb', 'surveynu_1'];
-    } else if (layerName.includes('_polygon')) {
+    } else if (layerName.includes('polygon')) {
         primaryNameKeys = ['survey_num', 'surnoc', 'hissa_num', 'Surveynumb', 'Surnoc', 'HissaNo'];
     } else if (layerName.includes('village')) {
         primaryNameKeys = ['lgd_vill_n', 'village_name'];
@@ -110,10 +110,26 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
     };
 
     let featureName = rawFeatureName ? toTitleCase(rawFeatureName) : undefined;
-    if (layerName.includes('_polygon') || layerName.includes('banglore_urban') || layerName.includes('bengaluru_urban')) {
-        const surveyNo = getAttributeValue(['Surveynumb', 'survey_num']) || '*';
-        const surnoc = getAttributeValue(['Surnoc', 'surnoc']) || '*';
-        const hissaNo = getAttributeValue(['HissaNo', 'hissa_num']) || '*';
+    if (layerName.includes('polygon') || layerName.includes('banglore_urban') || layerName.includes('bengaluru_urban') || layerName.includes('hissa')) {
+        const getAttr = (keys: string[]) => {
+            for (const k of keys) {
+                // Check raw key in payload
+                if (attributes && attributes[k] !== undefined && attributes[k] !== null) {
+                    return String(attributes[k]).trim();
+                }
+                // Check friendly mapped name
+                if (attributes) {
+                    const mappedEntry = Object.entries(attributes).find(([key, _]) => Object.prototype.hasOwnProperty.call(nameKeys, key) && (nameKeys as Record<string, string>)[key] === k);
+                    if (mappedEntry && mappedEntry[1] !== undefined && mappedEntry[1] !== null) {
+                        return String(mappedEntry[1]).trim();
+                    }
+                }
+            }
+            return '';
+        };
+        const surveyNo = getAttr(['Surveynumb', 'survey_num', 'Survey No']) || '*';
+        const surnoc = getAttr(['Surnoc', 'surnoc']) || '*';
+        const hissaNo = getAttr(['HissaNo', 'hissa_num', 'Hissa No']) || '*';
         featureName = `${surveyNo}/${surnoc}/${hissaNo}`;
     }
 
@@ -123,9 +139,8 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
     return (
         <motion.div
             initial={isSheet ? { opacity: 0, y: 100 } : { opacity: 0, x: -100 }}
-            animate={isSheet ? { opacity: 1, y: 0 } : { opacity: 1, x: 0 }}
-            exit={isSheet ? { opacity: 0, y: 100 } : { opacity: 0, x: -100 }}
-            transition={{ type: 'spring', damping: 20, stiffness: 100 }}
+            animate={isSheet ? { opacity: 1, y: 0, transition: { duration: 0.35, ease: 'easeOut' } } : { opacity: 1, x: 0, transition: { duration: 0.35, ease: 'easeOut' } }}
+            exit={isSheet ? { opacity: 0, y: 100, transition: { duration: 0.35, ease: 'easeIn' } } : { opacity: 0, x: -100, transition: { duration: 0.35, ease: 'easeIn' } }}
             drag={!isSheet}
             dragMomentum={false}
             dragConstraints={dragConstraints}
@@ -145,9 +160,11 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
 
             {/* Header — acts as drag handle on desktop */}
             <div className={`flex items-center justify-between border-b border-edge bg-base/50 shrink-0 ${isSheet ? 'px-4 py-3' : 'p-4'} ${!isSheet ? 'cursor-grab active:cursor-grabbing' : ''}`}>
-                {!isSheet && (
-                    <GripVertical className="w-4 h-4 text-muted/50 shrink-0 mr-1" />
-                )}
+                {
+                    !isSheet && (
+                        <GripVertical className="w-4 h-4 text-muted/50 shrink-0 mr-1" />
+                    )
+                }
                 <div className="flex-1 min-w-0 pr-4 flex flex-col justify-center">
                     <span className="text-[10px] font-bold text-muted uppercase tracking-wider truncate">
                         {displayLayerName || t('info.featureDetails')}
@@ -164,10 +181,10 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
                 >
                     {isSheet ? <X className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
                 </button>
-            </div>
+            </div >
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            < div className="flex-1 overflow-y-auto p-4 space-y-4" >
                 <div className="rounded-xl border border-edge bg-base/20 overflow-hidden shadow-inner">
                     <table className="w-full text-left text-[11px] border-collapse">
                         <thead>
@@ -199,10 +216,11 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
                                 } */
 
                                 // Blacklist internal/technical fields
-                                const blacklist = ['geometry', 'bbox', 'the_geom', 'geom', 'shape_length', 'shape_area', 'objectid', 'lgd_distri', 'gid', 'surveynu_1',
+                                const blacklist = [
+                                    'geometry', 'bbox', 'the_geom', 'geom', 'shape_length', 'shape_area', 'objectid', 'lgd_distri', 'gid', 'surveynu_1',
                                     'fid', 'id', 'id_0', 'uniquevill', 'bhucode', 'censusvill', 'bhoomivill', 'lgdgpcode', 'lgdgpname', 'kgisstatec', 'lgd_tlk_c', 'lgd_dst_c', 'bhucodedis', 'area', 'sq.km', 'uni', 'lot', 'sqkm',
                                     'project_name', 'surveyor_name', 'property_number', 'phone_number', 'feature_type',
-                                    'KGISCadast', 'UniqueVill', 'created_da', 'created_us', 'last_edi_1', 'last_edite', 'surveynu_1', 'KGISVill_1', 'KGISVillag', 'Label', 'SHAPE_Leng', 'SHAPE_Area',
+                                    'kgiscadast', 'uniquevill', 'created_da', 'created_us', 'last_edi_1', 'last_edite', 'kgisvill_1', 'kgisvillag', 'shape_leng', 'shape_area', 'label', 'landcode',
                                 ];
                                 if (blacklist.includes(key.toLowerCase())) return null;
 
@@ -257,12 +275,12 @@ export default function InfoPanel({ attributes, sourceLayer, id, onClose, varian
                 {/* <button className="w-full py-2.5 rounded-xl bg-accent text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-accent/20 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200">
                     Export Feature Data
                 </button> */}
-            </div>
+            </div >
 
             {/* Footer / Context */}
             {/* <div className="p-3 border-t border-edge bg-base/50 text-center">
                 <p className="text-[9px] font-bold text-muted uppercase tracking-[0.2em]">Source: Karnataka Geoserver</p>
             </div> */}
-        </motion.div>
+        </motion.div >
     );
 }

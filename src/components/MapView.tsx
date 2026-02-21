@@ -8,6 +8,7 @@ import VectorLayer from 'ol/layer/Vector';
 import OSM from 'ol/source/OSM';
 import XYZ from 'ol/source/XYZ';
 import TileWMS from 'ol/source/TileWMS';
+import ImageWMS from 'ol/source/ImageWMS';
 import ImageStatic from 'ol/source/ImageStatic';
 import VectorSource from 'ol/source/Vector';
 import GeoJSON from 'ol/format/GeoJSON';
@@ -228,6 +229,25 @@ function buildLayer(definition: LayerDefinition) {
           source: new TileWMS({
             url: definition.url,
             // Explicitly define projection to ensure SRS calculation
+            projection: 'EPSG:4326',
+            params: wmsParams,
+            crossOrigin: 'anonymous'
+          })
+        });
+      }
+      case 'image-wms': {
+        const wmsParams: Record<string, any> = {
+          LAYERS: definition.layerName,
+          TRANSPARENT: true,
+          VERSION: '1.1.1',
+          ...(definition.wmsParams || {})
+        };
+        if (definition.cqlFilter) {
+          wmsParams.CQL_FILTER = definition.cqlFilter;
+        }
+        return new ImageLayer({
+          source: new ImageWMS({
+            url: definition.url,
             projection: 'EPSG:4326',
             params: wmsParams,
             crossOrigin: 'anonymous'
@@ -626,8 +646,8 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
         const maxZoom = layer.getMaxZoom();
         if (currentZoom < minZoom || currentZoom >= maxZoom) return false;
 
-        const source = (layer as TileLayer<any>).getSource?.();
-        return source instanceof TileWMS;
+        const source = (layer as any).getSource?.();
+        return source instanceof TileWMS || source instanceof ImageWMS;
       });
 
       wmsLayers.sort((a, b) => {
@@ -638,8 +658,12 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
         return (b.getZIndex() || 0) - (a.getZIndex() || 0);
       });
 
+      // Build all fetch promises concurrently
+      const fetchPromises: Promise<any>[] = [];
+      const layerRefs: any[] = [];
+
       for (const layer of wmsLayers) {
-        const source = (layer as TileLayer<any>).getSource() as TileWMS;
+        const source = (layer as any).getSource() as TileWMS | ImageWMS;
         for (const infoFormat of infoFormats) {
           const url = source.getFeatureInfoUrl(coordinate, resolution, projection, {
             INFO_FORMAT: infoFormat,
@@ -647,32 +671,48 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
           });
           if (!url) continue;
 
+          let fetchUrl = url;
+          const proxyPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy`;
+          if (!url.includes(proxyPath) && url.includes('117.252.86.213')) {
+            fetchUrl = `${proxyPath}?url=${encodeURIComponent(url)}`;
+          }
+
+          fetchPromises.push(
+            fetch(fetchUrl).then(res => ({ res, infoFormat, layer })).catch(() => null)
+          );
+          layerRefs.push(layer);
+        }
+      }
+
+      // Execute all concurrently
+      const results = await Promise.all(fetchPromises);
+
+      // Process results in the original sorted priority order
+      for (const layer of wmsLayers) {
+        // Find results for this specific layer
+        const layerResults = results.filter(r => r && r.layer === layer);
+
+        for (const result of layerResults) {
+          if (!result || !result.res.ok) continue;
+
           try {
-            let fetchUrl = url;
-            const proxyPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy`;
-            if (!url.includes(proxyPath) && url.includes('117.252.86.213')) {
-              fetchUrl = `${proxyPath}?url=${encodeURIComponent(url)}`;
-            }
+            const bodyText = await result.res.text();
+            const contentType = (result.res.headers.get('content-type') || '').toLowerCase();
 
-            const response = await fetch(fetchUrl);
-            const bodyText = await response.text();
-            if (!response.ok) continue;
-
-            const contentType = (response.headers.get('content-type') || '').toLowerCase();
-            if (contentType.includes('json') || infoFormat === 'application/json') {
+            if (contentType.includes('json') || result.infoFormat === 'application/json') {
               try {
                 const data = JSON.parse(bodyText);
                 if (data.features && data.features.length > 0) {
                   const feature = data.features[0];
                   return {
                     attributes: feature.properties,
-                    layerName: layer.get('layerName') || 'WMS Layer',
+                    layerName: layer.get('displayName') || layer.get('layerName') || 'WMS Layer',
                     id: feature.id,
                     geometry: feature.geometry
                   };
                 }
               } catch {
-                // Try next INFO_FORMAT.
+                // Try next INFO_FORMAT
               }
               continue;
             }
@@ -695,13 +735,13 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
                 : undefined;
               return {
                 attributes: first.getProperties(),
-                layerName: layer.get('layerName') || 'WMS Layer',
+                layerName: layer.get('displayName') || layer.get('layerName') || 'WMS Layer',
                 id: first.getId()?.toString(),
                 geometry: geojsonGeometry
               };
             }
           } catch (error) {
-            console.error('GetFeatureInfo failed:', error);
+            console.error('GetFeatureInfo parsing failed:', error);
           }
         }
       }
@@ -734,7 +774,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
       });
 
       if (foundFeature && foundLayer) {
-        const sourceLayer = foundLayer.get('layerName') || 'Vector Layer';
+        const sourceLayer = foundLayer.get('displayName') || foundLayer.get('layerName') || 'Vector Layer';
         const geom = foundFeature.getGeometry();
         let geojsonGeometry: any = undefined;
         if (geom) {
@@ -878,6 +918,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
       const layer = buildLayer(definition);
       layer.set('userLayer', true);
       layer.set('layerName', definition.layerName || definition.name);
+      layer.set('displayName', definition.name);
       applyLayerSettings(layer, definition);
 
       // Auto-apply professional boundary styles

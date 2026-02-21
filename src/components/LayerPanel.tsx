@@ -7,6 +7,7 @@ import AnimatedCheckbox from '@/components/AnimatedCheckbox';
 
 const TYPE_LABELS: Record<LayerType, string> = {
   wms: 'WMS (tiled)',
+  'image-wms': 'WMS (single image)',
   wfs: 'WFS (GeoJSON)',
   xyz: 'XYZ Tiles',
   image: 'Static Image',

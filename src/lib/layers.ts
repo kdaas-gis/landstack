@@ -1,4 +1,4 @@
-export type LayerType = 'wms' | 'wfs' | 'xyz' | 'image' | 'geojson';
+export type LayerType = 'wms' | 'image-wms' | 'wfs' | 'xyz' | 'image' | 'geojson';
 
 export type LayerDefinition = {
   id: string;
