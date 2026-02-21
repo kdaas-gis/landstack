@@ -1,0 +1,13 @@
+services:
+  landstack:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${PORT:-3004}:3004"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=production
+      - PORT=3004
+    restart: always

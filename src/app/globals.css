@@ -1,0 +1,148 @@
+@import "ol/ol.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Hex value for the primary application accent color */
+    --color-accent: #2463ea;
+    /* Default: #0ea5e9 (Sky 500) */
+  }
+}
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 10% 10%, #1a2330, #0b0f14 60%);
+  color: #e6eef7;
+  font-feature-settings: "ss01";
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  transition: background 0.2s ease-in-out;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Custom Range Slider Styling */
+.premium-slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  width: 100%;
+}
+
+.premium-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 999px;
+  border: 1px solid rgba(226, 232, 240, 0.1);
+  transition: all 0.2s;
+}
+
+.premium-slider:hover::-webkit-slider-runnable-track {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(14, 165, 233, 0.2);
+}
+
+.premium-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 12px;
+  width: 12px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  cursor: pointer;
+  margin-top: -4px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--color-accent) 50%, transparent);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-slider:hover::-webkit-slider-thumb {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--color-accent) 80%, transparent);
+}
+
+.premium-slider:active::-webkit-slider-thumb {
+  transform: scale(0.9);
+  filter: brightness(1.1);
+}
+
+@layer components {
+  .toolbar-btn {
+    @apply flex items-center justify-center rounded-lg transition-all relative;
+  }
+
+  .toolbar-btn-default {
+    @apply text-muted hover:text-ink hover:bg-base;
+  }
+
+  .toolbar-btn-active {
+    @apply text-white;
+  }
+
+  .toolbar-btn-highlight {
+    @apply text-accent hover:bg-accent/10;
+  }
+}
+
+.ol-viewport {
+  border-radius: 16px;
+}
+
+/* Map Scale Control */
+.ol-scale-line {
+  background: rgba(10, 10, 11, 0.8) !important;
+  border-radius: 8px !important;
+  bottom: 1rem !important;
+  left: 1rem !important;
+  padding: 4px 8px !important;
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.ol-scale-line-inner {
+  color: #a1a1aa !important;
+  /* text-muted */
+  font-family: inherit !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  border-color: #a1a1aa !important;
+  border-width: 1px 1px 0 1px !important;
+  /* Top, Right, Left borders for bar style */
+}
+
+/* Mobile: more compact scale */
+@media (max-width: 767px) {
+  .ol-scale-line {
+    bottom: 0.5rem !important;
+    left: 0.5rem !important;
+    padding: 2px 6px !important;
+  }
+
+  .ol-scale-line-inner {
+    font-size: 9px !important;
+  }
+}
