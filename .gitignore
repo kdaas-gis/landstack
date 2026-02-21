@@ -38,3 +38,8 @@ next-env.d.ts
 
 # large files
 *.tar
+
+# python and mjs scripts
+*.py
+*.mjs
+
