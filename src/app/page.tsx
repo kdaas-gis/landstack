@@ -50,6 +50,7 @@ const buTalukLayers: LayerDefinition[] = BU_TALUK_PROFILES.flatMap((taluk) =>
 );
 
 const APPLICATION_OWS_URL = 'http://117.252.86.213:8080/geoserver/application/ows';
+const APPLICATION_WFS_URL = 'http://117.252.86.213:8080/geoserver/application/wfs';
 
 const initialLayers: LayerDefinition[] = [
   {
@@ -216,15 +217,21 @@ function MapInterface() {
     const taluk = BU_TALUK_PROFILES.find((item) => item.id === talukId);
     if (!taluk) return;
 
-    // Mapping from our internal ID to the 'kgistalukn' value in the database
-    // Using ILIKE with wildcards for robustness against minor spelling variations
-    // We check for both 'Bangalore' and 'Bengaluru' to be safe.
+    // Parcel-layer fallback mapping (profile WFS data)
     const TALUK_CQL_MAPPING: Record<string, string> = {
       'bu_anekal': "kgistalukn ILIKE '%Anekal%'",
       'bu_bengaluru_east': "kgistalukn ILIKE '%Bangalore%East%' OR kgistalukn ILIKE '%Bengaluru%East%'",
       'bu_bengaluru_north': "kgistalukn ILIKE '%Bangalore%North%' OR kgistalukn ILIKE '%Bengaluru%North%'",
       'bu_bengaluru_south': "kgistalukn ILIKE '%Bangalore%South%' OR kgistalukn ILIKE '%Bengaluru%South%'",
       'bu_yelahanka': "kgistalukn ILIKE '%Yelahanka%'",
+    };
+    // Admin boundary mapping (application:taluk_boundary)
+    const TALUK_ADMIN_CQL_MAPPING: Record<string, string> = {
+      'bu_anekal': "lgd_tlk_n ILIKE '%Anekal%'",
+      'bu_bengaluru_east': "lgd_tlk_n ILIKE '%Bangalore%East%' OR lgd_tlk_n ILIKE '%Bengaluru%East%'",
+      'bu_bengaluru_north': "lgd_tlk_n ILIKE '%Bangalore%North%' OR lgd_tlk_n ILIKE '%Bengaluru%North%'",
+      'bu_bengaluru_south': "lgd_tlk_n ILIKE '%Bangalore%South%' OR lgd_tlk_n ILIKE '%Bengaluru%South%'",
+      'bu_yelahanka': "lgd_tlk_n ILIKE '%Yelahanka%'",
     };
 
     const cqlFilter = TALUK_CQL_MAPPING[talukId];
@@ -234,22 +241,52 @@ function MapInterface() {
     }
 
     const typeName = 'application:taluk_boundary';
-    // Use the APPLICATION_OWS_URL directly, similar to how 'survey-number-boundary' is configured.
-    // Ensure we go through the proxy to avoid CORS/mixed-content issues.
-    const baseUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent(APPLICATION_OWS_URL)}`;
+    const adminCqlFilter = TALUK_ADMIN_CQL_MAPPING[talukId];
+    const applicationBaseUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent(APPLICATION_WFS_URL)}`;
+    const profileBaseUrl = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?profile=${encodeURIComponent(taluk.id)}`;
+    const profileLayerName = `${taluk.workspace}:${taluk.layer}_polygon`;
 
     try {
-      const separator = baseUrl.includes('?') ? '&' : '?';
-      // Construct WFS GetFeature request
-      const query = `${separator}service=WFS&version=1.1.0&request=GetFeature&typeName=${encodeURIComponent(typeName)}&outputFormat=application/json&srsname=EPSG:4326&CQL_FILTER=${encodeURIComponent(cqlFilter)}`;
+      const requestVariants = [
+        {
+          label: 'application taluk boundary (WFS 1.1.0)',
+          url: `${applicationBaseUrl}&service=WFS&version=1.1.0&request=GetFeature&typeName=${encodeURIComponent(typeName)}&outputFormat=application/json&srsName=EPSG:4326&CQL_FILTER=${encodeURIComponent(cqlFilter)}`,
+        },
+        {
+          label: 'taluk profile polygon (WFS 1.1.0)',
+          url: `${profileBaseUrl}&service=WFS&version=1.1.0&request=GetFeature&typeName=${encodeURIComponent(profileLayerName)}&outputFormat=application/json&srsName=EPSG:4326`,
+        },
+      ];
 
-      const response = await fetch(`${baseUrl}${query}`);
-      if (!response.ok) {
-        console.error('Zoom request failed:', response.status, response.statusText);
+      let data: any = null;
+      for (const variant of requestVariants) {
+        const response = await fetch(variant.url);
+        if (!response.ok) {
+          console.warn(`Zoom request failed (${variant.label}):`, response.status, response.statusText);
+          continue;
+        }
+
+        const bodyText = await response.text();
+        try {
+          const parsed = JSON.parse(bodyText);
+          if (Array.isArray(parsed?.features) && parsed.features.length > 0) {
+            data = parsed;
+            break;
+          }
+          console.warn(`Zoom request returned JSON without features (${variant.label}).`);
+          continue;
+        } catch {
+          const xmlHint = bodyText.slice(0, 180).replace(/\s+/g, ' ').trim();
+          console.warn(`Zoom request returned non-JSON (${variant.label}).`, xmlHint);
+          continue;
+        }
+      }
+
+      if (!data) {
+        console.error(`Failed to zoom to taluk (${talukId}): WFS did not return GeoJSON`);
         return;
       }
 
-      const data = await response.json();
       if (data?.features?.length > 0) {
         console.log(`Zooming to taluk (${talukId}): Found ${data.features.length} features.`);
 
@@ -258,25 +295,68 @@ function MapInterface() {
         if (data.features.length === 1) {
           targetGeometry = data.features[0].geometry;
         } else {
-          // Combine multiple features (e.g., if the taluk is split into multiple polygons)
+          // Merge polygonal geometries into a single MultiPolygon when possible.
           const geometries = data.features.map((f: any) => f.geometry).filter(Boolean);
           if (geometries.length > 0) {
-            targetGeometry = {
-              type: 'GeometryCollection',
-              geometries: geometries
-            };
+            const multiPolygonCoords: any[] = [];
+            for (const geometry of geometries) {
+              if (geometry?.type === 'Polygon') {
+                multiPolygonCoords.push(geometry.coordinates);
+              } else if (geometry?.type === 'MultiPolygon' && Array.isArray(geometry.coordinates)) {
+                multiPolygonCoords.push(...geometry.coordinates);
+              }
+            }
+
+            if (multiPolygonCoords.length > 0) {
+              targetGeometry = {
+                type: 'MultiPolygon',
+                coordinates: multiPolygonCoords,
+              };
+            } else {
+              targetGeometry = {
+                type: 'GeometryCollection',
+                geometries: geometries
+              };
+            }
           }
         }
 
         if (targetGeometry) {
-          mapRef.current?.zoomToFeature(targetGeometry);
+          // Fetch admin taluk boundary for zoom + highlight (single boundary),
+          // even if fallback data came from profile parcel polygons.
+          let zoomGeometry: any = targetGeometry;
+          let highlightGeometry: any = targetGeometry;
+          if (adminCqlFilter) {
+            try {
+              const adminResponse = await fetch(
+                `${applicationBaseUrl}&service=WFS&version=1.1.0&request=GetFeature&typeName=${encodeURIComponent(typeName)}&outputFormat=application/json&srsName=EPSG:4326&CQL_FILTER=${encodeURIComponent(adminCqlFilter)}`
+              );
+              if (adminResponse.ok) {
+                const adminText = await adminResponse.text();
+                const adminData = JSON.parse(adminText);
+                if (Array.isArray(adminData?.features) && adminData.features.length > 0) {
+                  const adminGeometry = adminData.features[0].geometry || targetGeometry;
+                  zoomGeometry = adminGeometry;
+                  highlightGeometry = adminGeometry;
+                }
+              }
+            } catch {
+              // Keep fallback zoom/highlight geometry
+            }
+          }
 
-          // Highlight the taluk boundary
+          mapRef.current?.zoomToFeature(zoomGeometry);
+
+          // Always show taluk-level metadata for zoom action; do not show random parcel attributes.
           setSelectedFeature({
-            attributes: data.features[0].properties,
+            attributes: {
+              name: taluk.label,
+              taluk: taluk.label,
+              feature_count: data.features.length,
+            },
             sourceLayer: typeName,
             id: `taluk-zoom-${talukId}`,
-            geometry: targetGeometry
+            geometry: highlightGeometry
           });
         }
 
