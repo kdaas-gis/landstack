@@ -448,6 +448,7 @@ function MapInterface() {
         const villageCode = result.properties.lgd_vill_c;
 
         const cqlName = `lgd_vill_n = '${villageName}'`;
+        const cqlVillageCode = villageCode ? `lgd_vill_c = '${villageCode}'` : cqlName;
         const cqlCode = villageCode ? `LGD_Villag = '${villageCode}'` : cqlName;
         const turnOffIds = new Set([
           'karnataka-districts', 'karnataka-taluks',
@@ -468,17 +469,17 @@ function MapInterface() {
         );
 
         setLayers(prev => prev.map(layer => {
-          // BU taluk polygon layers — filter by village and show
+          // BU taluk polygon layers — filter by village code (fallback to name if code unavailable)
           if (buPolygonIds.has(layer.id)) {
-            return { ...layer, visible: true, cqlFilter: cqlName };
+            return { ...layer, visible: true, cqlFilter: cqlVillageCode };
           }
           // BU taluk points/polyline — hide (no lgd_vill_n column)
           if (buNonPolygonIds.has(layer.id)) {
             return { ...layer, visible: true };
           }
-          // Village boundary — filter by village name
+          // Village boundary — filter by village code (fallback to name if code unavailable)
           if (filterByVillageIds.has(layer.id)) {
-            return { ...layer, visible: true, cqlFilter: cqlName, minZoom: undefined };
+            return { ...layer, visible: true, cqlFilter: cqlVillageCode, minZoom: undefined };
           }
           // Survey Number boundary — filter by village code (LGD_Villag)
           if (filterByCodeIds.has(layer.id)) {
@@ -556,6 +557,9 @@ function MapInterface() {
             setActiveTool(null);
             setSelectedFeature(null);
             setCursorCoords(null);
+            setLayers(initialLayers);
+            setShowAdvancedSearch(false);
+            setShowMobileSearch(false);
           }}
           onCurrentLocation={() => mapRef.current?.goToCurrentLocation()}
           activeTool={activeTool}
