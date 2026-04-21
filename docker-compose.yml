@@ -1,5 +1,6 @@
 services:
   landstack:
+    image: landstack-geofence
     build:
       context: .
       dockerfile: Dockerfile

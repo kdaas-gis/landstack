@@ -329,7 +329,7 @@ function buildLayer(definition: LayerDefinition) {
               // Apply proxy if needed
               let fetchUrl = url;
               const proxyPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy`;
-              if (url.includes('117.252.86.213') && !url.includes(proxyPath)) {
+              if (url.includes('rdgis.karnataka.gov.in') && !url.includes(proxyPath)) {
                 fetchUrl = `${proxyPath}?url=${encodeURIComponent(url)}`;
               }
 
@@ -673,7 +673,7 @@ const MapView = forwardRef<MapViewHandle, MapViewProps>(({
 
           let fetchUrl = url;
           const proxyPath = `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy`;
-          if (!url.includes(proxyPath) && url.includes('117.252.86.213')) {
+          if (!url.includes(proxyPath) && url.includes('rdgis.karnataka.gov.in')) {
             fetchUrl = `${proxyPath}?url=${encodeURIComponent(url)}`;
           }
 

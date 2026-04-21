@@ -49,15 +49,15 @@ const buTalukLayers: LayerDefinition[] = BU_TALUK_PROFILES.flatMap((taluk) =>
   }))
 );
 
-const APPLICATION_OWS_URL = 'http://117.252.86.213:8080/geoserver/application/ows';
-const APPLICATION_WFS_URL = 'http://117.252.86.213:8080/geoserver/application/wfs';
+const APPLICATION_OWS_URL = 'https://rdgis.karnataka.gov.in/geoserver/application/ows';
+const APPLICATION_WFS_URL = 'https://rdgis.karnataka.gov.in/geoserver/application/wfs';
 
 const initialLayers: LayerDefinition[] = [
   {
     id: 'karnataka-districts',
     name: 'Districts',
     type: 'wms',
-    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('http://117.252.86.213:8080/geoserver/application/wms')}`,
+    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('https://rdgis.karnataka.gov.in/geoserver/application/wms')}`,
     layerName: 'application:district_boundary',
     opacity: 0.8,
     visible: true,
@@ -68,7 +68,7 @@ const initialLayers: LayerDefinition[] = [
     id: 'karnataka-taluks',
     name: 'Taluks',
     type: 'wms',
-    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('http://117.252.86.213:8080/geoserver/application/wms')}`,
+    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('https://rdgis.karnataka.gov.in/geoserver/application/wms')}`,
     layerName: 'application:taluk_boundary',
     opacity: 0.8,
     visible: true,
@@ -79,7 +79,7 @@ const initialLayers: LayerDefinition[] = [
     id: 'karnataka-hoblis',
     name: 'Hoblis',
     type: 'wms',
-    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('http://117.252.86.213:8080/geoserver/application/wms')}`,
+    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('https://rdgis.karnataka.gov.in/geoserver/application/wms')}`,
     layerName: 'application:hobli_boundary',
     opacity: 0.8,
     visible: true,
@@ -90,7 +90,7 @@ const initialLayers: LayerDefinition[] = [
     id: 'karnataka-villages',
     name: 'Villages',
     type: 'wms',
-    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('http://117.252.86.213:8080/geoserver/application/wms')}`,
+    url: `${process.env.NEXT_PUBLIC_BASE_PATH || ''}/api/proxy?url=${encodeURIComponent('https://rdgis.karnataka.gov.in/geoserver/application/wms')}`,
     layerName: 'application:village_boundary',
     opacity: 0.8,
     visible: true,

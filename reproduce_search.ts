@@ -1,4 +1,4 @@
-const GEOSERVER_Url = 'http://117.252.86.213:8080/geoserver/wfs';
+const GEOSERVER_Url = 'https://rdgis.karnataka.gov.in/geoserver/application/wfs';
 
 async function queryLayer(
     layer: string,

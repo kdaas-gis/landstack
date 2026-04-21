@@ -9,7 +9,7 @@ export type SearchResult = {
     description?: string;
 };
 
-const GEOSERVER_Url = 'http://117.252.86.213:8080/geoserver/application/wfs';
+const GEOSERVER_Url = 'https://rdgis.karnataka.gov.in/geoserver/application/wfs';
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
 
 function getPropertyCaseInsensitive(properties: any, key: string): any[] {
